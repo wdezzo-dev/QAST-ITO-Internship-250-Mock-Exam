@@ -63,7 +63,7 @@ function generateQuestionsForExam(
   }
 
   if (questionCountType === "all") {
-    return pool;
+    return [...pool].sort(() => Math.random() - 0.5);
   }
 
   const count = Math.min(customCount, pool.length);
@@ -140,6 +140,8 @@ export default function App() {
   // Sidebar display toggle
   const [showSidebar, setShowSidebar] = React.useState<boolean>(true);
   const [showSubmitConfirm, setShowSubmitConfirm] = React.useState<boolean>(false);
+  const [showExitConfirm, setShowExitConfirm] = React.useState<boolean>(false);
+  const [showMobileGrid, setShowMobileGrid] = React.useState<boolean>(false);
 
   // Load high score and check for saved states on mount
   React.useEffect(() => {
@@ -364,7 +366,7 @@ export default function App() {
       return ans !== q.correctAnswer;
     });
 
-    setActiveQuestions(incorrectQuestions);
+    setActiveQuestions([...incorrectQuestions].sort(() => Math.random() - 0.5));
     setUserAnswers({});
     setFlaggedQuestions([]);
     setCurrentQuestionIndex(0);
@@ -400,6 +402,66 @@ export default function App() {
   // Progress Percentage
   const progressPercent = Math.round((answeredCount / totalQuestionsCount) * 100);
 
+  // Keyboard Shortcuts Hook
+  React.useEffect(() => {
+    if (view !== "exam" || !currentQuestion) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+
+      // Check for numeric keys 1-4 or letters a-d
+      const numMap: Record<string, number> = {
+        "1": 0, "2": 1, "3": 2, "4": 3,
+        "a": 0, "b": 1, "c": 2, "d": 3
+      };
+
+      if (key in numMap) {
+        const optionIndex = numMap[key];
+        const option = currentQuestion.options[optionIndex];
+        if (option) {
+          const isStudyMode = settings.mode === "study";
+          const isAnsweredThisQ = !!userAnswers[currentQuestion.id];
+          if (!(isStudyMode && isAnsweredThisQ)) {
+            setUserAnswers(prev => ({
+              ...prev,
+              [currentQuestion.id]: option.key
+            }));
+          }
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        // Move to the next question if an answer has been selected for the current question
+        const hasAnswer = !!userAnswers[currentQuestion.id];
+        if (hasAnswer) {
+          if (currentQuestionIndex < totalQuestionsCount - 1) {
+            setCurrentQuestionIndex((prev) => prev + 1);
+            const qCard = document.getElementById("question-card");
+            if (qCard) {
+              qCard.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          } else {
+            // Last question, open submission confirmation modal
+            setShowSubmitConfirm(true);
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [view, currentQuestion, userAnswers, currentQuestionIndex, totalQuestionsCount, settings.mode]);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 flex flex-col font-sans" id="app-root">
       {/* Top Application Navbar */}
@@ -410,12 +472,12 @@ export default function App() {
               <GraduationCap className="w-6 h-6" />
             </div>
             <div>
-              <span className="text-sm font-black text-slate-100 tracking-tight" id="header-title">QAST IT DIVISION</span>
-              <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest leading-none mt-0.5">2026 ITO Practice Portal</div>
+              <span className="text-xs sm:text-sm font-black text-slate-100 tracking-tight" id="header-title">QAST IT DIVISION</span>
+              <div className="hidden xs:block text-[9px] sm:text-[10px] font-mono text-slate-500 uppercase tracking-widest leading-none mt-0.5">2026 ITO Practice Portal</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Personal Best Tag */}
             {personalBest && (
               <div className="hidden sm:flex items-center gap-2 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-bold" id="header-pb-badge">
@@ -428,12 +490,9 @@ export default function App() {
             {view === "exam" && (
               <button
                 onClick={() => {
-                  if (confirm("Are you sure you want to exit the exam? Your current progress is saved, and you can resume later.")) {
-                    setIsTimerRunning(false);
-                    setView("intro");
-                  }
+                  setShowExitConfirm(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition cursor-pointer"
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition cursor-pointer shrink-0"
                 id="header-quit-btn"
               >
                 <Home className="w-3.5 h-3.5" />
@@ -463,7 +522,7 @@ export default function App() {
               
               {/* Desktop Question Grid Side panel (LG and larger) */}
               {showSidebar && (
-                <div className="lg:col-span-3 bg-slate-900 border border-slate-850 rounded-2xl p-5 shadow-lg sticky top-24 max-h-[80vh] overflow-y-auto flex flex-col justify-between" id="exam-sidebar">
+                <div className="hidden lg:flex lg:col-span-3 bg-slate-900 border border-slate-850 rounded-2xl p-5 shadow-lg sticky top-24 max-h-[80vh] overflow-y-auto flex-col justify-between" id="exam-sidebar">
                   <div>
                     <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3" id="sidebar-header">
                       <h3 className="font-extrabold text-slate-100 text-sm flex items-center gap-1.5">
@@ -638,7 +697,7 @@ export default function App() {
 
                   {/* Answer Options list */}
                   <div className="space-y-3.5" id="question-options">
-                    {currentQuestion.options.map((opt) => {
+                    {currentQuestion.options.map((opt, idx) => {
                       const isSelected = userAnswers[currentQuestion.id] === opt.key;
                       
                       // Study mode extra highlighting variables
@@ -683,17 +742,42 @@ export default function App() {
                               ...userAnswers,
                               [currentQuestion.id]: opt.key
                             });
+
+                            // Auto-advance on phone/mobile (width < 768px) if not in study mode and not final question
+                            const isMobile = window.innerWidth < 768;
+                            const isFinalQuestion = currentQuestionIndex === totalQuestionsCount - 1;
+
+                            if (isMobile && !isStudyMode && !isFinalQuestion) {
+                              setTimeout(() => {
+                                setCurrentQuestionIndex((prev) => Math.min(totalQuestionsCount - 1, prev + 1));
+                                const qCard = document.getElementById("question-card");
+                                if (qCard) {
+                                  qCard.scrollIntoView({ behavior: "smooth", block: "start" });
+                                }
+                              }, 220);
+                            }
                           }}
-                          className={`w-full text-left p-4.5 rounded-xl border flex items-start gap-4 transition-all duration-200 ${
+                          className={`w-full text-left p-4.5 rounded-xl border flex items-center justify-between gap-4 transition-all duration-200 ${
                             isStudyMode && isAnsweredThisQ ? "" : "cursor-pointer"
                           } ${optStyle}`}
                           id={`opt-btn-${opt.key}`}
                         >
-                          <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-black shrink-0 mt-0.5 ${badgeStyle}`} id={`opt-key-${opt.key}`}>
-                            {opt.key}
-                          </span>
-                          <span className="flex-1 leading-relaxed text-sm pt-0.5" id={`opt-text-${opt.key}`}>{opt.text}</span>
-                          {checkIcon}
+                          <div className="flex items-start gap-4 flex-1">
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-black shrink-0 mt-0.5 ${badgeStyle}`} id={`opt-key-${opt.key}`}>
+                              {opt.key}
+                            </span>
+                            <span className="flex-1 leading-relaxed text-sm pt-0.5" id={`opt-text-${opt.key}`}>{opt.text}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            {/* Desktop keyboard helper cap */}
+                            {!(isStudyMode && isAnsweredThisQ) && (
+                              <kbd className="hidden md:inline-flex items-center justify-center h-6 px-1.5 rounded bg-slate-900 border border-slate-800 text-[9px] font-mono font-bold text-slate-500 opacity-70">
+                                {idx + 1}
+                              </kbd>
+                            )}
+                            {checkIcon}
+                          </div>
                         </button>
                       );
                     })}
@@ -716,17 +800,21 @@ export default function App() {
                 </div>
 
                 {/* Navigation and Submission Buttons Bar */}
-                <div className="flex items-center justify-between gap-3 bg-slate-900 p-4 border border-slate-850 rounded-2xl" id="navigation-controls">
-                  <div className="flex gap-2">
+                <div className="flex items-center justify-between gap-2 bg-slate-900 p-3 sm:p-4 border border-slate-850 rounded-2xl shadow-md" id="navigation-controls">
+                  <div className="flex items-center gap-1.5">
                     {/* Previous Button */}
                     <button
-                      onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
+                      onClick={() => {
+                        setCurrentQuestionIndex((prev) => Math.max(0, prev - 1));
+                        const qCard = document.getElementById("question-card");
+                        if (qCard) qCard.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
                       disabled={currentQuestionIndex === 0}
-                      className="px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-900 text-slate-300 font-bold text-xs md:text-sm disabled:opacity-40 disabled:hover:bg-slate-950 transition flex items-center gap-1 cursor-pointer"
+                      className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-900 text-slate-300 font-bold text-xs md:text-sm disabled:opacity-40 disabled:hover:bg-slate-950 transition flex items-center gap-1 cursor-pointer min-h-[40px]"
                       id="prev-question-btn"
                     >
-                      <ChevronLeft className="w-4 h-4 shrink-0" />
-                      <span>Previous</span>
+                      <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                      <span>Prev</span>
                     </button>
 
                     {/* Clear selection */}
@@ -737,65 +825,119 @@ export default function App() {
                           delete updated[currentQuestion.id];
                           setUserAnswers(updated);
                         }}
-                        className="px-3 py-2 text-slate-500 hover:text-red-400 transition text-xs font-bold rounded-lg hover:bg-red-950/20 cursor-pointer"
+                        className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-slate-500 hover:text-red-400 transition text-[10px] sm:text-xs font-bold rounded-lg hover:bg-red-950/20 cursor-pointer min-h-[36px]"
                         id="clear-answer-btn"
                       >
-                        Clear Answer
+                        Clear
                       </button>
                     )}
+                  </div>
+
+                  {/* Desktop Keyboard Shortcuts Info badge */}
+                  <div className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-950/40 border border-slate-850 px-3 py-1.5 rounded-xl">
+                    <span className="px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded font-mono text-[10px] font-bold text-slate-400">1 - 4</span>
+                    <span>or</span>
+                    <span className="px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded font-mono text-[10px] font-bold text-slate-400">A - D</span>
+                    <span>to select</span>
+                    <span className="text-slate-700 font-extrabold mx-0.5">•</span>
+                    <span className="px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded font-mono text-[10px] font-bold text-slate-400">Enter</span>
+                    <span>to next</span>
                   </div>
 
                   {/* Next / Submit Buttons */}
                   {currentQuestionIndex < totalQuestionsCount - 1 ? (
                     <button
-                      onClick={() => setCurrentQuestionIndex((prev) => Math.min(totalQuestionsCount - 1, prev + 1))}
-                      className="px-5 py-2.5 bg-slate-950 hover:bg-slate-900 text-slate-200 border border-slate-800 font-bold text-xs md:text-sm rounded-xl shadow-sm transition flex items-center gap-1 cursor-pointer"
+                      onClick={() => {
+                        setCurrentQuestionIndex((prev) => Math.min(totalQuestionsCount - 1, prev + 1));
+                        const qCard = document.getElementById("question-card");
+                        if (qCard) qCard.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                      className="px-3.5 sm:px-5 py-2 sm:py-2.5 bg-slate-950 hover:bg-slate-900 text-slate-200 border border-slate-800 font-bold text-xs md:text-sm rounded-xl shadow-sm transition flex items-center gap-1 shrink-0 cursor-pointer min-h-[40px]"
                       id="next-question-btn"
                     >
                       <span>Next</span>
-                      <ChevronRight className="w-4 h-4 shrink-0" />
+                      <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                     </button>
                   ) : (
                     <button
                       onClick={() => handleSubmitExam()}
-                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs md:text-sm rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 sm:px-5 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs md:text-sm rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer min-h-[40px]"
                       id="finish-exam-btn"
                     >
-                      <CheckCircle className="w-4 h-4 text-emerald-100" />
-                      <span>Submit Exam</span>
+                      <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-100" />
+                      <span>Submit</span>
                     </button>
                   )}
                 </div>
 
                 {/* Mobile/Tablet Helper Grid Panel (SM/MD display only) */}
-                <div className="lg:hidden bg-slate-900 border border-slate-850 rounded-2xl p-5 shadow-lg" id="mobile-questions-grid-panel">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Quick Navigation Jump Grid</span>
-                    <span className="text-xs font-bold text-slate-500">({answeredCount} of {totalQuestionsCount} answered)</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 justify-start" id="mobile-q-buttons">
-                    {activeQuestions.map((q, idx) => {
-                      const isCurrent = idx === currentQuestionIndex;
-                      const isAnswered = !!userAnswers[q.id];
-                      const isFlagged = flaggedQuestions.includes(q.id);
+                <div className="lg:hidden bg-slate-900 border border-slate-850 rounded-2xl p-4 shadow-lg" id="mobile-questions-grid-panel">
+                  <button
+                    onClick={() => setShowMobileGrid(!showMobileGrid)}
+                    className="w-full flex justify-between items-center text-left cursor-pointer min-h-[40px]"
+                    id="mobile-grid-toggle-btn"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ListCollapse className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-black text-slate-200 uppercase tracking-wider">Quick Jump Board</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-slate-400">({answeredCount}/{totalQuestionsCount} Done)</span>
+                      <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${showMobileGrid ? "rotate-90" : ""}`} />
+                    </div>
+                  </button>
 
-                      let style = "border-slate-800 text-slate-400 bg-slate-950";
-                      if (isAnswered) style = "bg-emerald-600 text-white border-emerald-600";
-                      if (isFlagged) style = "bg-amber-500 text-slate-950 border-amber-500";
-                      if (isCurrent) style += " ring-2 ring-emerald-400 ring-offset-1 ring-offset-slate-900";
+                  {showMobileGrid && (
+                    <div className="mt-4 pt-4 border-t border-slate-800 animate-fade-in" id="mobile-grid-content">
+                      {/* Simple Instructions key for mobile */}
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-500 mb-4 pb-3 border-b border-slate-800" id="mobile-sidebar-legend">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded bg-slate-950 border border-slate-800 inline-block" />
+                          <span>Unanswered</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded bg-emerald-600 inline-block" />
+                          <span>Answered</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded bg-amber-500 inline-block" />
+                          <span>Flagged</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded ring-2 ring-emerald-400 inline-block bg-slate-950" />
+                          <span>Current</span>
+                        </div>
+                      </div>
 
-                      return (
-                        <button
-                          key={q.id}
-                          onClick={() => setCurrentQuestionIndex(idx)}
-                          className={`w-8 h-8 rounded-lg text-[10px] font-black flex items-center justify-center transition cursor-pointer border ${style}`}
-                          id={`mobile-q-btn-${q.id}`}
-                        >
-                          {idx + 1}
-                        </button>
-                      );
-                    })}
-                  </div>
+                      <div className="flex flex-wrap gap-1.5 justify-start max-h-[250px] overflow-y-auto pr-1" id="mobile-q-buttons">
+                        {activeQuestions.map((q, idx) => {
+                          const isCurrent = idx === currentQuestionIndex;
+                          const isAnswered = !!userAnswers[q.id];
+                          const isFlagged = flaggedQuestions.includes(q.id);
+
+                          let style = "border-slate-800 text-slate-400 bg-slate-950";
+                          if (isAnswered) style = "bg-emerald-600 text-white border-emerald-600";
+                          if (isFlagged) style = "bg-amber-500 text-slate-950 border-amber-500";
+                          if (isCurrent) style += " ring-2 ring-emerald-400 ring-offset-1 ring-offset-slate-900";
+
+                          return (
+                            <button
+                              key={q.id}
+                              onClick={() => {
+                                setCurrentQuestionIndex(idx);
+                                const qCard = document.getElementById("question-card");
+                                if (qCard) qCard.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }}
+                              className={`w-8 h-8 rounded-lg text-[10px] font-black flex items-center justify-center transition cursor-pointer border shrink-0 ${style}`}
+                              id={`mobile-q-btn-${q.id}`}
+                            >
+                              {idx + 1}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
               </div>
@@ -868,6 +1010,43 @@ export default function App() {
                 id="modal-confirm-submit-btn"
               >
                 Confirm Submission
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM EXIT MODAL */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 animate-fade-in" id="exit-confirm-modal">
+          <div className="bg-slate-900 rounded-2xl max-w-md w-full p-6 md:p-8 shadow-2xl border border-slate-800 animate-scale-up" id="exit-modal-card">
+            <div className="flex items-center gap-3 text-amber-400 mb-4" id="exit-modal-header">
+              <AlertCircle className="w-8 h-8 shrink-0" />
+              <h3 className="text-xl font-black text-slate-100">Exit Practice Session?</h3>
+            </div>
+            
+            <p className="text-sm text-slate-300 leading-relaxed mb-6">
+              Your current progress of <span className="font-bold text-slate-100">{answeredCount}</span> answered questions is saved automatically. You can safely return and resume exactly where you left off.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-end" id="exit-modal-actions">
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-slate-300 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-lg transition cursor-pointer text-center"
+                id="exit-modal-resume-btn"
+              >
+                Keep Practicing
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  setIsTimerRunning(false);
+                  setView("intro");
+                }}
+                className="w-full sm:w-auto px-5 py-2.5 text-xs font-extrabold text-white bg-amber-600 hover:bg-amber-500 rounded-lg shadow-md transition cursor-pointer text-center"
+                id="exit-modal-confirm-btn"
+              >
+                Exit & Save Progress
               </button>
             </div>
           </div>
