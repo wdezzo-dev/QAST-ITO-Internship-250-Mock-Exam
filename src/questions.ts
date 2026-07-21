@@ -4,6 +4,9 @@ import { QUESTIONS_SEC2 } from "./questions_sec2";
 import { QUESTIONS_SEC3 } from "./questions_sec3";
 import { QUESTIONS_SEC4 } from "./questions_sec4";
 import { QUESTIONS_SEC5 } from "./questions_sec5";
+import { QUESTIONS_FOCUS, FOCUS_SUBJECTS } from "./questions_focus";
+
+export { FOCUS_SUBJECTS, QUESTIONS_FOCUS };
 
 export const MOCK_QUESTIONS: Question[] = [
   ...QUESTIONS_SEC1,

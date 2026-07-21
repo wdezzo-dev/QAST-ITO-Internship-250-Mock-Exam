@@ -22,7 +22,7 @@ import {
   Trash2,
   GraduationCap
 } from "lucide-react";
-import { MOCK_QUESTIONS, SECTIONS, SECTION_QUESTIONS_RANGE } from "./questions";
+import { MOCK_QUESTIONS, SECTIONS, SECTION_QUESTIONS_RANGE, FOCUS_SUBJECTS, QUESTIONS_FOCUS } from "./questions";
 import { Question, ExamResults } from "./types";
 import Introduction from "./components/Introduction";
 import Results from "./components/Results";
@@ -37,7 +37,7 @@ interface SavedExamState {
     mode: "exam" | "study";
     timed: boolean;
     timeLimit: number;
-    scope: "all" | "section";
+    scope: "all" | "section" | "subject";
     selectedSection: string;
     questionCountType: "all" | "custom";
     customCount: number;
@@ -52,7 +52,7 @@ interface SavedExamState {
 
 // Helper function to generate questions for the exam based on configuration
 function generateQuestionsForExam(
-  scope: "all" | "section",
+  scope: "all" | "section" | "subject",
   selectedSection: string,
   questionCountType: "all" | "custom",
   customCount: number
@@ -60,6 +60,8 @@ function generateQuestionsForExam(
   let pool = MOCK_QUESTIONS;
   if (scope === "section") {
     pool = MOCK_QUESTIONS.filter(q => q.section === selectedSection);
+  } else if (scope === "subject") {
+    pool = QUESTIONS_FOCUS.filter(q => q.section === selectedSection);
   }
 
   if (questionCountType === "all") {
@@ -68,7 +70,7 @@ function generateQuestionsForExam(
 
   const count = Math.min(customCount, pool.length);
 
-  if (scope === "section") {
+  if (scope === "section" || scope === "subject") {
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, count);
   } else {
@@ -106,7 +108,7 @@ export default function App() {
     mode: "exam" | "study";
     timed: boolean;
     timeLimit: number;
-    scope: "all" | "section";
+    scope: "all" | "section" | "subject";
     selectedSection: string;
     questionCountType: "all" | "custom";
     customCount: number;
@@ -209,7 +211,7 @@ export default function App() {
     mode: "exam" | "study";
     timed: boolean;
     timeLimit: number;
-    scope: "all" | "section";
+    scope: "all" | "section" | "subject";
     selectedSection: string;
     questionCountType: "all" | "custom";
     customCount: number;
@@ -245,7 +247,7 @@ export default function App() {
         
         if (parsed.activeQuestionIds && parsed.activeQuestionIds.length > 0) {
           const restored = parsed.activeQuestionIds
-            .map(id => MOCK_QUESTIONS.find(q => q.id === id)!)
+            .map(id => MOCK_QUESTIONS.find(q => q.id === id)! || QUESTIONS_FOCUS.find(q => q.id === id)!)
             .filter(Boolean);
           setActiveQuestions(restored);
         } else {
@@ -286,9 +288,15 @@ export default function App() {
     const sectionScores: { [sectionName: string]: { correct: number; total: number } } = {};
 
     // Pre-initialize sections
-    SECTIONS.forEach((section) => {
-      sectionScores[section] = { correct: 0, total: 0 };
-    });
+    if (settings.scope === "subject") {
+      FOCUS_SUBJECTS.forEach((subj) => {
+        sectionScores[subj] = { correct: 0, total: 0 };
+      });
+    } else {
+      SECTIONS.forEach((section) => {
+        sectionScores[section] = { correct: 0, total: 0 };
+      });
+    }
 
     activeQuestions.forEach((q) => {
       const userAnswer = userAnswers[q.id];

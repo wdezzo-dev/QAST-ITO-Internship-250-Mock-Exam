@@ -120,7 +120,7 @@ export default function Results({
         </h2>
         
         <div className="space-y-6" id="section-bars-container">
-          {SECTIONS.map((sectionName) => {
+          {Object.keys(results.sectionScores).map((sectionName) => {
             const scoreData = results.sectionScores[sectionName] || { correct: 0, total: 0 };
             const sectionPercent = scoreData.total > 0 ? Math.round((scoreData.correct / scoreData.total) * 100) : 0;
             const isSectionPassing = sectionPercent >= 70;

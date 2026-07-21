@@ -1,13 +1,13 @@
 import React from "react";
 import { BookOpen, Clock, Settings, GraduationCap, Award, Play, AlertCircle } from "lucide-react";
-import { SECTIONS, MOCK_QUESTIONS } from "../questions";
+import { SECTIONS, MOCK_QUESTIONS, FOCUS_SUBJECTS, QUESTIONS_FOCUS } from "../questions";
 
 interface IntroductionProps {
   onStart: (settings: {
     mode: "exam" | "study";
     timed: boolean;
     timeLimit: number;
-    scope: "all" | "section";
+    scope: "all" | "section" | "subject";
     selectedSection: string;
     questionCountType: "all" | "custom";
     customCount: number;
@@ -21,14 +21,17 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
   const [mode, setMode] = React.useState<"exam" | "study">("exam");
   const [timed, setTimed] = React.useState(true);
   const [timeLimit, setTimeLimit] = React.useState(180); // default 180 minutes for 250 questions
-  const [scope, setScope] = React.useState<"all" | "section">("all");
+  const [scope, setScope] = React.useState<"all" | "section" | "subject">("all");
   const [selectedSection, setSelectedSection] = React.useState<string>(SECTIONS[0]);
   const [questionCountType, setQuestionCountType] = React.useState<"all" | "custom">("all");
   const [customCount, setCustomCount] = React.useState<number>(30);
+  const [syllabusTab, setSyllabusTab] = React.useState<"general" | "focused">("general");
 
   const calculatedTotalQuestions = scope === "all"
     ? (questionCountType === "all" ? MOCK_QUESTIONS.length : customCount)
-    : (questionCountType === "all" ? 50 : Math.min(50, customCount));
+    : scope === "section"
+      ? (questionCountType === "all" ? 50 : Math.min(50, customCount))
+      : (questionCountType === "all" ? 50 : Math.min(50, customCount)); // subjects have 50 questions each
 
   // Automatically adjust recommended time limit when settings change
   React.useEffect(() => {
@@ -63,34 +66,108 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
         </div>
       </div>
 
-      {/* Grid of Sections Covered */}
+      {/* Grid of Sections Covered with Tab Selector */}
       <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-lg p-6 md:p-8 mb-8" id="syllabus-card">
-        <h2 className="text-xl font-bold text-slate-100 mb-4 flex items-center gap-2" id="syllabus-title">
-          <BookOpen className="w-5 h-5 text-emerald-400" />
-          Exam Composition ({MOCK_QUESTIONS.length} Questions)
-        </h2>
-        <p className="text-slate-400 text-sm mb-6">
-          This mock exam strictly adheres to the official QAST IT Division guidelines, covering core topics essential for IT Operations, Software Development, Databases, Cloud, and Computer Science fundamentals.
-        </p>
-        
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" id="sections-grid">
-          {SECTIONS.map((section, idx) => {
-            const range = idx === 0 ? "Q1 - Q50 (50 Qs)" : 
-                          idx === 1 ? "Q51 - Q100 (50 Qs)" :
-                          idx === 2 ? "Q101 - Q150 (50 Qs)" :
-                          idx === 3 ? "Q151 - Q200 (50 Qs)" : "Q201 - Q250 (50 Qs)";
-            return (
-              <div key={idx} className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 flex flex-col justify-between" id={`section-card-${idx}`}>
-                <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1" id={`section-range-${idx}`}>
-                  {range}
-                </div>
-                <div className="text-sm font-bold text-slate-200" id={`section-name-${idx}`}>
-                  {section}
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-5" id="syllabus-header-container">
+          <div id="syllabus-header-left">
+            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2" id="syllabus-title">
+              <BookOpen className="w-5 h-5 text-emerald-400" />
+              Syllabus & Focus Areas
+            </h2>
+            <p className="text-xs text-slate-400 mt-1" id="syllabus-desc">
+              Explore the core curriculum or train on hyper-targeted domains.
+            </p>
+          </div>
+          
+          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-850 self-start sm:self-auto" id="syllabus-tabs">
+            <button
+              type="button"
+              onClick={() => setSyllabusTab("general")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                syllabusTab === "general"
+                  ? "bg-emerald-600 text-white shadow"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              id="syllabus-tab-general-btn"
+            >
+              Core Syllabus (250 Qs)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSyllabusTab("focused")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                syllabusTab === "focused"
+                  ? "bg-emerald-600 text-white shadow"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              id="syllabus-tab-focused-btn"
+            >
+              Focused Subjects (50 Qs)
+            </button>
+          </div>
         </div>
+
+        {syllabusTab === "general" ? (
+          <div>
+            <p className="text-slate-400 text-sm mb-6">
+              This mock exam strictly adheres to the official QAST IT Division guidelines, covering core topics essential for IT Operations, Software Development, Databases, Cloud, and Computer Science fundamentals.
+            </p>
+            
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" id="sections-grid">
+              {SECTIONS.map((section, idx) => {
+                const range = idx === 0 ? "Q1 - Q50 (50 Qs)" : 
+                              idx === 1 ? "Q51 - Q100 (50 Qs)" :
+                              idx === 2 ? "Q101 - Q150 (50 Qs)" :
+                              idx === 3 ? "Q151 - Q200 (50 Qs)" : "Q201 - Q250 (50 Qs)";
+                return (
+                  <div key={idx} className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 flex flex-col justify-between" id={`section-card-${idx}`}>
+                    <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1" id={`section-range-${idx}`}>
+                      {range}
+                    </div>
+                    <div className="text-sm font-bold text-slate-200" id={`section-name-${idx}`}>
+                      {section}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-slate-400 text-sm mb-6">
+              Specifically added high-yield modules to master highly requested interview topics. Select these to practice real-world situational problems with immediate feedback.
+            </p>
+            
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" id="focus-subjects-grid">
+              {FOCUS_SUBJECTS.map((subject, idx) => {
+                const subranges = idx === 0 ? "Q1001 - Q1050 (50 Qs)" :
+                                  idx === 1 ? "Q1051 - Q1100 (50 Qs)" :
+                                  idx === 2 ? "Q1101 - Q1150 (50 Qs)" :
+                                  idx === 3 ? "Q1151 - Q1200 (50 Qs)" : "Q1201 - Q1250 (50 Qs)";
+                const details = idx === 0 ? "IP/MAC mapping, DNS, TCP handshake, DHCP, routing layers, NAT mechanism" :
+                                idx === 1 ? "File permissions (chmod), top diagnostics, system files /etc, grep filtering" :
+                                idx === 2 ? "Indexes speedup, FK relationships, ACID Isolation, INNER joins, normalization" :
+                                idx === 3 ? "Active listening, conflict resolution, project handoff, proactive stakeholder updates" :
+                                "MFA credentials, MITM interventions, parameterized queries, least privilege, cryptographic salts";
+                return (
+                  <div key={idx} className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 flex flex-col justify-between" id={`focus-subject-card-${idx}`}>
+                    <div>
+                      <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1" id={`focus-subject-range-${idx}`}>
+                        {subranges}
+                      </div>
+                      <div className="text-sm font-bold text-slate-200 mb-1" id={`focus-subject-name-${idx}`}>
+                        {subject}
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-slate-500 italic mt-2 border-t border-slate-850/40 pt-2 leading-normal" id={`focus-subject-details-${idx}`}>
+                      {details}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Resume Session Banner */}
@@ -242,14 +319,14 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
             <span className="text-xs font-black text-slate-500 uppercase tracking-wider" id="scope-selection-label">
               Test Coverage:
             </span>
-            <div className="grid grid-cols-2 gap-3" id="scope-selection-buttons">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" id="scope-selection-buttons">
               <button
                 type="button"
                 onClick={() => {
                   setScope("all");
                   setQuestionCountType("all"); // Reset to all by default for full test
                 }}
-                className={`py-3 px-4 rounded-xl border text-sm font-bold text-center transition duration-200 cursor-pointer ${
+                className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition duration-200 cursor-pointer ${
                   scope === "all"
                     ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-extrabold"
                     : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
@@ -262,15 +339,32 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
                 type="button"
                 onClick={() => {
                   setScope("section");
+                  setSelectedSection(SECTIONS[0]);
                 }}
-                className={`py-3 px-4 rounded-xl border text-sm font-bold text-center transition duration-200 cursor-pointer ${
+                className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition duration-200 cursor-pointer ${
                   scope === "section"
                     ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-extrabold"
                     : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
                 }`}
                 id="scope-section-btn"
               >
-                Single Section Practice
+                Syllabus Section
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScope("subject");
+                  setSelectedSection(FOCUS_SUBJECTS[0]);
+                  setCustomCount(10);
+                }}
+                className={`py-3 px-3 rounded-xl border text-xs font-bold text-center transition duration-200 cursor-pointer ${
+                  scope === "subject"
+                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-extrabold"
+                    : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
+                }`}
+                id="scope-subject-btn"
+              >
+                Focused Subject
               </button>
             </div>
 
@@ -283,7 +377,7 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
                 <select
                   value={selectedSection}
                   onChange={(e) => setSelectedSection(e.target.value)}
-                  className="w-full py-2.5 px-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-200 text-sm focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-200 text-sm focus:ring-emerald-500 focus:border-emerald-500 outline-none cursor-pointer"
                   id="section-select-dropdown"
                 >
                   {SECTIONS.map((sec, idx) => (
@@ -294,6 +388,30 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
                 </select>
                 <p className="text-[11px] text-slate-500 italic" id="section-range-note">
                   Covers exactly 50 specialized questions for this section.
+                </p>
+              </div>
+            )}
+
+            {/* Dynamic Subject Dropdown */}
+            {scope === "subject" && (
+              <div className="space-y-2 animate-fade-in" id="subject-select-container">
+                <label className="text-xs font-bold text-slate-400" id="subject-dropdown-label">
+                  Select Focus Area:
+                </label>
+                <select
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-200 text-sm focus:ring-emerald-500 focus:border-emerald-500 outline-none cursor-pointer"
+                  id="subject-select-dropdown"
+                >
+                  {FOCUS_SUBJECTS.map((subj, idx) => (
+                    <option key={idx} value={subj}>
+                      {subj} Focus Area
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500 italic" id="subject-range-note">
+                  Covers specialized diagnostic questions targeting this specific competency.
                 </p>
               </div>
             )}
@@ -319,7 +437,9 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
               </button>
               <button
                 type="button"
-                onClick={() => setQuestionCountType("custom")}
+                onClick={() => {
+                  setQuestionCountType("custom");
+                }}
                 className={`py-3 px-4 rounded-xl border text-sm font-bold text-center transition duration-200 cursor-pointer ${
                   questionCountType === "custom"
                     ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-extrabold"
@@ -338,10 +458,8 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
                   Select number of random questions:
                 </label>
                 <div className="flex flex-wrap gap-2" id="custom-count-buttons">
-                  {[10, 20, 30, 50, 100].map((num) => {
-                    // Skip 100 if section scope is active (section only has 50 questions!)
-                    if (scope === "section" && num > 50) return null;
-                    return (
+                  {scope === "subject" || scope === "section" ? (
+                    [5, 10, 20, 30, 50].map((num) => (
                       <button
                         key={num}
                         type="button"
@@ -355,16 +473,36 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
                       >
                         {num} Qs
                       </button>
-                    );
-                  })}
+                    ))
+                  ) : (
+                    [10, 20, 30, 50, 100].map((num) => {
+                      return (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setCustomCount(num)}
+                          className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                            customCount === num
+                              ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-500"
+                              : "bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800"
+                          }`}
+                          id={`custom-count-${num}-btn`}
+                        >
+                          {num} Qs
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
                 <p className="text-[11px] text-slate-500 leading-normal" id="custom-count-explain-note">
                   {scope === "all" ? (
                     <span>
                       Perfect balance: selects exactly <span className="text-emerald-400 font-bold">{customCount / 5}</span> random questions from <strong>each of the 5 sections</strong>!
                     </span>
-                  ) : (
+                  ) : scope === "section" ? (
                     <span>Selects {customCount} random questions from the chosen section.</span>
+                  ) : (
+                    <span>Selects {customCount} random questions from the chosen focus subject area.</span>
                   )}
                 </p>
               </div>
@@ -378,7 +516,7 @@ export default function Introduction({ onStart, savedStateExists, onLoadSaved, o
             <span>
               Configured: <strong className="text-slate-200">{calculatedTotalQuestions} questions</strong> from{" "}
               <strong className="text-slate-200">
-                {scope === "all" ? "All Syllabus Sections" : selectedSection}
+                {scope === "all" ? "All Syllabus Sections" : scope === "section" ? selectedSection : `${selectedSection} Focus Subject`}
               </strong>.
             </span>
           </div>
