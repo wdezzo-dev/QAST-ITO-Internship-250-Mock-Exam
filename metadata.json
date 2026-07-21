@@ -1,0 +1,6 @@
+{
+  "name": "QAST ITO Internship Mock Exam",
+  "description": "A fully interactive 50-question mock examination for the QAST IT Division Internship, featuring categorized sections, detailed answers, score tracking, progress saving, and thorough explanations for each question.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
